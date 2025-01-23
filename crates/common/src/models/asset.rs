@@ -21,7 +21,7 @@ pub struct Asset {
     pub amount: String,
     /// Number of decimal places for the asset
     #[serde(rename = "decimals", skip_serializing_if = "Option::is_none")]
-    pub decimals: Option<i32>,
+    pub decimals: Option<u32>,
 }
 
 impl Asset {
