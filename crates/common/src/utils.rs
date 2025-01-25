@@ -9,14 +9,13 @@ use {
 pub fn init_log(level: &str, file: &str) {
     let mut layers = Vec::with_capacity(2);
     let level_filter = LevelFilter::from_level(tracing::Level::from_str(level).unwrap());
-    let filter = EnvFilter::from_default_env().add_directive(level_filter.into());
 
     layers.push(
         tracing_subscriber::fmt::layer()
             .with_level(true)
             .with_line_number(true)
             .with_file(true)
-            .with_filter(filter)
+            .with_filter(level_filter)
             .boxed(),
     );
     if !file.is_empty() {

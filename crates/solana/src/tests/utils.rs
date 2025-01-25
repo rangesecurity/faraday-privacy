@@ -1,5 +1,5 @@
 use {
-    anyhow::Result, litesvm::LiteSVM, solana_feature_set::FeatureSet, solana_sdk::{account::Account, pubkey::Pubkey, signature::Keypair, signer::Signer, system_program, transaction::Transaction}, solana_zk_sdk::{encryption::{auth_encryption::AeKey, elgamal::ElGamalKeypair, pod::elgamal::PodElGamalPubkey}, zk_elgamal_proof_program::proof_data::PubkeyValidityProofData}, spl_token_2022::{extension::{confidential_transfer::instruction::configure_account, ExtensionType}, state::Mint}, spl_token_client::token::ExtensionInitializationParams, spl_token_confidential_transfer_proof_extraction::instruction::{ProofData, ProofLocation}
+    anyhow::Result, litesvm::LiteSVM, solana_client::nonblocking::rpc_client::RpcClient, solana_feature_set::FeatureSet, solana_sdk::{account::Account, pubkey::Pubkey, signature::Keypair, signer::Signer, system_program, transaction::Transaction}, solana_zk_sdk::{encryption::{auth_encryption::AeKey, elgamal::ElGamalKeypair, pod::elgamal::PodElGamalPubkey}, zk_elgamal_proof_program::proof_data::PubkeyValidityProofData}, spl_token_2022::{extension::{confidential_transfer::instruction::configure_account, ExtensionType}, state::Mint}, spl_token_client::token::ExtensionInitializationParams, spl_token_confidential_transfer_proof_extraction::instruction::{ProofData, ProofLocation}
 };
 pub struct TestClient {
     svm: LiteSVM
@@ -53,8 +53,9 @@ impl TestClient {
             self.svm.airdrop(key, *amount).unwrap();
         }
     }
-    pub fn create_no_auditor_mint(
+    pub async fn create_no_auditor_mint(
         &mut self,
+        rpc: Option<&RpcClient>,
         mint_authority: &Keypair,
         mint: &Keypair,
         auditor: &ElGamalKeypair,
@@ -91,6 +92,12 @@ impl TestClient {
             Some(&mint_authority.pubkey()),
             6
         )?);
+        let block_hash = if let Some(rpc) = &rpc {
+            rpc.get_latest_blockhash().await.unwrap()
+        } else {
+            self.svm.latest_blockhash()
+
+        };
         let tx = Transaction::new_signed_with_payer(
             &ixs,
             Some(&mint_authority.pubkey()),
@@ -98,14 +105,20 @@ impl TestClient {
                 &mint_authority,
                 &mint
             ],
-            self.svm.latest_blockhash()
+            block_hash
         );
-        let tx = self.svm.send_transaction(tx).unwrap();
-        println!("{tx:#?}");
+        if let Some(rpc) = rpc {
+            log::info!("sent tx {}", rpc.send_and_confirm_transaction(&tx).await.unwrap());
+        } else {
+            let tx = self.svm.send_transaction(tx).unwrap();
+            println!("{tx:#?}");
+        }
+
         Ok(())
     }
-    pub fn create_token_accounts(
+    pub async fn create_token_accounts(
         &mut self,
+        rpc: Option<&RpcClient>,
         sender: &Keypair,
         mint: &Pubkey
     ) {
@@ -156,23 +169,27 @@ impl TestClient {
             proof_location
         ).unwrap());
         log::info!("{ixs:#?}");
+        let block_hash = if let Some(rpc) = rpc {
+            rpc.get_latest_blockhash().await.unwrap()
+        } else {
+            self.svm.latest_blockhash()
+
+        };
         let tx = Transaction::new_signed_with_payer(
             &ixs,
             Some(&sender.pubkey()),
             &[
                 &sender,
             ],
-            self.svm.latest_blockhash()
+            block_hash
         );
-
-        match self.svm.send_transaction(tx) {
-            Ok(tx) => {
-                println!("{tx:#?}");
-            }
-            Err(err) => {
-                panic!("{err:#?}");
-            }
+        if let Some(rpc) = &rpc {
+            log::info!("sent tx {}", rpc.send_and_confirm_transaction(&tx).await.unwrap());
+        } else {
+            let tx = self.svm.send_transaction(tx).unwrap();
+            println!("{tx:#?}");
         }
+
 
     }
 }
