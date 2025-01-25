@@ -1,0 +1,55 @@
+[package]
+name = "solana"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies.solana-sdk]
+version = "2.1.10"
+[dependencies.solana-client]
+version = "2.1.10"
+[dependencies.solana-zk-sdk]
+version = "2.1.10"
+[dependencies.solana-transaction-status-client-types]
+version = "2.1.10"
+[dependencies.tokio]
+version = "1"
+features = ["full"]
+[dependencies.anyhow]
+version = "1"
+[dependencies.serde]
+version = "1"
+features = ["derive"]
+[dependencies.serde_json]
+version = "1"
+[dependencies.base64]
+version = "0.12"
+[dependencies.tracing-subscriber]
+version = "0.3"
+features = ["env-filter", "json", "parking_lot", "tracing-log"]
+optional = true
+[dependencies.spl-token-2022]
+git = "https://github.com/solana-labs/solana-program-library.git"
+rev = "224a96b164357a221c7f7dae5e348f9c0f7a73da" 
+[dependencies.spl-token-client]
+git = "https://github.com/solana-labs/solana-program-library.git"
+rev = "224a96b164357a221c7f7dae5e348f9c0f7a73da" 
+[dependencies.spl-associated-token-account]
+git = "https://github.com/solana-labs/solana-program-library.git"
+rev = "224a96b164357a221c7f7dae5e348f9c0f7a73da" 
+[dependencies.spl-token-confidential-transfer-proof-generation]
+git = "https://github.com/solana-labs/solana-program-library.git"
+rev = "224a96b164357a221c7f7dae5e348f9c0f7a73da" 
+[dependencies.spl-token-confidential-transfer-proof-extraction]
+git = "https://github.com/solana-labs/solana-program-library.git"
+rev = "224a96b164357a221c7f7dae5e348f9c0f7a73da" 
+[dependencies.common]
+path = "../common"
+[dependencies.log]
+version = "0.4"
+[dev-dependencies.litesvm]
+git = "https://github.com/LiteSVM/litesvm"
+branch = "master"
+[dev-dependencies.solana-feature-set]
+version = "2.1.9"

@@ -2,4 +2,7 @@
 members = [
     "crates/common"
 ]
+exclude = [
+    "crates/solana"
+]
 resolver = "2"
