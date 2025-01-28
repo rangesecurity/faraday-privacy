@@ -1,12 +1,15 @@
 use {
-    anyhow::Result, litesvm::LiteSVM, solana_client::nonblocking::rpc_client::RpcClient, solana_feature_set::FeatureSet, solana_sdk::{account::Account, pubkey::Pubkey, signature::Keypair, signer::Signer, system_program, transaction::Transaction}, solana_zk_sdk::{encryption::{auth_encryption::AeKey, elgamal::ElGamalKeypair, pod::elgamal::PodElGamalPubkey}, zk_elgamal_proof_program::proof_data::PubkeyValidityProofData}, spl_token_2022::{extension::{confidential_transfer::instruction::configure_account, ExtensionType}, state::Mint}, spl_token_client::token::ExtensionInitializationParams, spl_token_confidential_transfer_proof_extraction::instruction::{ProofData, ProofLocation}
+    anyhow::Result, litesvm::LiteSVM, solana_client::{nonblocking::rpc_client::RpcClient, rpc_config::RpcRequestAirdropConfig}, solana_feature_set::FeatureSet, solana_sdk::{account::Account, commitment_config::CommitmentConfig, pubkey::Pubkey, signature::Keypair, signer::Signer, system_program, transaction::Transaction}, solana_zk_sdk::{encryption::{auth_encryption::AeKey, elgamal::ElGamalKeypair, pod::elgamal::{PodElGamalCiphertext, PodElGamalPubkey}}, zk_elgamal_proof_program::proof_data::PubkeyValidityProofData}, spl_token_2022::{extension::{confidential_transfer::instruction::configure_account, ExtensionType}, state::Mint}, spl_token_client::token::ExtensionInitializationParams, spl_token_confidential_transfer_proof_extraction::instruction::{ProofData, ProofLocation}, std::sync::Arc
 };
 pub struct TestClient {
-    svm: LiteSVM
+    svm: LiteSVM,
+    rpc: Option<Arc<RpcClient>>,
 }
 
 impl TestClient {
-    pub fn new() -> Self {
+    pub fn new(
+        rpc: Option<Arc<RpcClient>>,
+    ) -> Self {
         let mut svm = LiteSVM::new()
         // need to enable build ints
         .with_builtins(Some(
@@ -21,6 +24,7 @@ impl TestClient {
             "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb".parse().unwrap(),
             "../../token2022.so"
         ).unwrap();
+
         svm.set_account(
             "ZkE1Gama1Proof11111111111111111111111111111".parse().unwrap(),
             Account {
@@ -31,31 +35,33 @@ impl TestClient {
                 rent_epoch: 18446744073709551615
             }
         ).unwrap();
-        svm.set_account(
-            "NativeLoader1111111111111111111111111111111".parse().unwrap(),
-            Account {
-                lamports: 0,
-                data: vec![],
-                owner: system_program::id(),
-                executable: false,
-                rent_epoch: 18446744073709551615
-            }
-        ).unwrap();
         Self {
             svm: svm,
+            rpc,
         }
     }
     pub fn svm(&mut self) -> &mut LiteSVM {
         &mut self.svm 
     }
-    pub fn airdrop(&mut self, keys: &[(Pubkey, u64)]) {
+    pub async fn airdrop(&mut self, keys: &[(Pubkey, u64)]) {
         for (key, amount) in keys.iter() {
-            self.svm.airdrop(key, *amount).unwrap();
+            if let Some(rpc) = &self.rpc {
+                rpc.request_airdrop_with_config(
+                    key,
+                    *amount,
+                    RpcRequestAirdropConfig {
+                        commitment: Some(CommitmentConfig::finalized()),
+                        ..Default::default()
+                    }
+                ).await.unwrap();
+            } else {
+                self.svm.airdrop(key, *amount).unwrap();
+
+            }
         }
     }
     pub async fn create_no_auditor_mint(
         &mut self,
-        rpc: Option<&RpcClient>,
         mint_authority: &Keypair,
         mint: &Keypair,
         auditor: &ElGamalKeypair,
@@ -92,12 +98,7 @@ impl TestClient {
             Some(&mint_authority.pubkey()),
             6
         )?);
-        let block_hash = if let Some(rpc) = &rpc {
-            rpc.get_latest_blockhash().await.unwrap()
-        } else {
-            self.svm.latest_blockhash()
-
-        };
+        let block_hash = self.latest_block_hash().await;
         let tx = Transaction::new_signed_with_payer(
             &ixs,
             Some(&mint_authority.pubkey()),
@@ -107,18 +108,12 @@ impl TestClient {
             ],
             block_hash
         );
-        if let Some(rpc) = rpc {
-            log::info!("sent tx {}", rpc.send_and_confirm_transaction(&tx).await.unwrap());
-        } else {
-            let tx = self.svm.send_transaction(tx).unwrap();
-            println!("{tx:#?}");
-        }
+        self.send_transaction(tx).await;
 
         Ok(())
     }
     pub async fn create_token_accounts(
         &mut self,
-        rpc: Option<&RpcClient>,
         sender: &Keypair,
         mint: &Pubkey
     ) {
@@ -169,12 +164,7 @@ impl TestClient {
             proof_location
         ).unwrap());
         log::info!("{ixs:#?}");
-        let block_hash = if let Some(rpc) = rpc {
-            rpc.get_latest_blockhash().await.unwrap()
-        } else {
-            self.svm.latest_blockhash()
-
-        };
+        let block_hash = self.latest_block_hash().await;
         let tx = Transaction::new_signed_with_payer(
             &ixs,
             Some(&sender.pubkey()),
@@ -183,13 +173,113 @@ impl TestClient {
             ],
             block_hash
         );
-        if let Some(rpc) = &rpc {
+        self.send_transaction(tx).await;
+
+
+    }
+
+    pub async fn mint_confidential_tokens(
+        &mut self,
+        mint_authority: &Keypair,
+        mint: Pubkey,
+        recipient: Pubkey,
+        mint_amount: u64,
+        auditor: &ElGamalKeypair,
+    ) {
+        let receiving_token_account = spl_associated_token_account::get_associated_token_address_with_program_id(
+            &recipient,
+            &mint,
+            &spl_token_2022::id(),
+        );
+        let context_state_dummy = Pubkey::new_unique();
+        let ixs = spl_token_2022::extension::confidential_mint_burn::instruction::confidential_mint_with_split_proofs(
+            &spl_token_2022::id(),
+            &receiving_token_account,
+            &mint,
+            Some(auditor.pubkey_owned()),
+            &PodElGamalCiphertext::default(),
+            &PodElGamalCiphertext::default(),
+            &mint_authority.pubkey(),
+            &[&mint_authority.pubkey()],
+            ProofLocation::ContextStateAccount(&context_state_dummy),
+            ProofLocation::ContextStateAccount(&context_state_dummy),
+            ProofLocation::ContextStateAccount(&context_state_dummy),
+            AeKey::new_rand().encrypt(mint_amount).into()            
+        ).unwrap();
+        let block_hash = self.latest_block_hash().await;
+        let tx = Transaction::new_signed_with_payer(
+            &ixs,
+            Some(&mint_authority.pubkey()),
+            &[&mint_authority],
+            block_hash
+        );
+        self.send_transaction(tx).await;
+    }
+    pub async fn mint_tokens(
+        &mut self,
+        mint_authority: &Keypair,
+        mint: Pubkey,
+        recipient: Pubkey,
+        mint_amount: u64
+    ) {
+        let receiving_token_account = spl_associated_token_account::get_associated_token_address_with_program_id(
+            &recipient,
+            &mint,
+            &spl_token_2022::id(),
+        );
+
+        let ix = spl_token_2022::instruction::mint_to(
+            &spl_token_2022::id(),
+            &mint,
+            &receiving_token_account,
+            &mint_authority.pubkey(),
+            &[],
+            mint_amount
+        ).unwrap();
+        let block_hash = self.latest_block_hash().await;
+        let tx = Transaction::new_signed_with_payer(
+            &[ix],
+            Some(&mint_authority.pubkey()),
+            &[&mint_authority],
+            block_hash
+        );
+        self.send_transaction(tx).await;
+    }
+    pub async fn deposit_to_confidential_balance(
+        &mut self,
+        depositor: &Keypair,
+        mint: Pubkey,
+        amount: u64
+    ) {
+        let depositor_token_account = spl_associated_token_account::get_associated_token_address_with_program_id(
+            &depositor.pubkey(),
+            &mint,
+            &spl_token_2022::id(),
+        );
+        let ix = spl_token_2022::extension::confidential_transfer::instruction::deposit(
+            &spl_token_2022::id(),
+            &depositor_token_account,
+            &mint,
+            amount,
+            6,
+            &depositor.pubkey(),
+            &[]
+        ).unwrap();
+    }
+    pub async fn send_transaction(&mut self, tx: Transaction) {
+        if let Some(rpc) = &self.rpc {
             log::info!("sent tx {}", rpc.send_and_confirm_transaction(&tx).await.unwrap());
         } else {
             let tx = self.svm.send_transaction(tx).unwrap();
-            println!("{tx:#?}");
+            log::info!("{tx:#?}");
         }
+    }
+    pub async fn latest_block_hash(&mut self) ->  solana_sdk::hash::Hash {
+        if let Some(rpc) = &self.rpc {
+            rpc.get_latest_blockhash().await.unwrap()
+        } else {
+            self.svm.latest_blockhash()
 
-
+        }
     }
 }

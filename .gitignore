@@ -24,3 +24,5 @@ Cargo.lock
 
 /target
 /Cargo.lock
+
+test-ledger/
