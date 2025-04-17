@@ -3,4 +3,23 @@ name = "penumbra"
 version = "0.1.0"
 edition = "2021"
 
-[dependencies]
+[dependencies.common]
+path = "../common"
+
+[dependencies.penumbra-sdk-view]
+git = "https://github.com/penumbra-zone/penumbra"
+tag = "v1.4.0"
+[dependencies.penumbra-sdk-proto]
+git = "https://github.com/penumbra-zone/penumbra"
+tag = "v1.4.0"
+features = ["box-grpc"]
+
+[dependencies.tonic]
+version = "0.12.3"
+
+[dependencies.tokio]
+version = "1"
+features = ["full"]
+
+[dependencies.anyhow]
+version = "1"
