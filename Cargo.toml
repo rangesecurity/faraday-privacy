@@ -3,6 +3,7 @@ members = [
     "crates/common"
 ]
 exclude = [
-    "crates/solana"
+    "crates/solana",
+    "crates/penumbra"
 ]
 resolver = "2"
