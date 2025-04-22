@@ -9,10 +9,22 @@ path = "../common"
 [dependencies.penumbra-sdk-view]
 git = "https://github.com/penumbra-zone/penumbra"
 tag = "v1.4.0"
+[dependencies.penumbra-sdk-keys]
+git = "https://github.com/penumbra-zone/penumbra"
+tag = "v1.4.0"
+[dependencies.penumbra-sdk-txhash]
+git = "https://github.com/penumbra-zone/penumbra"
+tag = "v1.4.0"
 [dependencies.penumbra-sdk-proto]
 git = "https://github.com/penumbra-zone/penumbra"
 tag = "v1.4.0"
 features = ["box-grpc"]
+
+[dependencies.futures]
+version = "0.3"
+
+[dependencies.tendermint-rpc]
+version = "0.40.3"
 
 [dependencies.tonic]
 version = "0.12.3"
@@ -23,3 +35,9 @@ features = ["full"]
 
 [dependencies.anyhow]
 version = "1"
+
+[dependencies.camino]
+version = "1"
+
+[dev-dependencies.hex]
+version = "0.4"

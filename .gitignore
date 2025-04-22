@@ -26,3 +26,5 @@ Cargo.lock
 /Cargo.lock
 
 test-ledger/
+
+crates/penumbra/mydb
