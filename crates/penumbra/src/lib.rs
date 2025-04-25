@@ -24,8 +24,7 @@ use {
 pub struct DisclosureClient {
     view: ViewServiceClient<BoxGrpcService>,
     tpc: TendermintProxyServiceClient<Channel>,
-    // probably need a better way to do this, can we just store the FullViewingKey ?
-    payment_keys: Vec<Address>,
+    fvk: FullViewingKey,
 }
 
 impl DisclosureClient {
@@ -48,10 +47,7 @@ impl DisclosureClient {
             tpc: TendermintProxyServiceClient::connect(url.to_string())
                 .await
                 .with_context(|| "failed to connect to proxy")?,
-            payment_keys: (0..=3)
-                .into_iter()
-                .map(|idx| fvk.payment_address(AddressIndex::new(idx)).0)
-                .collect::<Vec<_>>(),
+            fvk: fvk.clone()
         })
     }
     pub async fn sync(&mut self) -> Result<()> {
@@ -94,7 +90,9 @@ impl DisclosureClient {
         };
 
         for effect in txn.summary.effects {
-            let role = if self.payment_keys.contains(&effect.address.address()) {
+            let role = if let AddressView::Decoded { .. } = self.fvk.view_address(
+                effect.address.address()
+            ) {
                 Role::Sender
             } else {
                 Role::Receiver
