@@ -6,7 +6,7 @@ use {
         models::{counterparty::Role, transaction::Protocol, Counterparty, Transaction},
     },
     futures::StreamExt,
-    penumbra_sdk_keys::FullViewingKey,
+    penumbra_sdk_keys::{keys::AddressIndex, Address, AddressView, FullViewingKey},
     penumbra_sdk_proto::{
         box_grpc_svc::{self, BoxGrpcService},
         util::tendermint_proxy::v1::{
@@ -23,6 +23,9 @@ use {
 
 pub struct DisclosureClient {
     view: ViewServiceClient<BoxGrpcService>,
+    tpc: TendermintProxyServiceClient<Channel>,
+    // probably need a better way to do this, can we just store the FullViewingKey ?
+    payment_keys: Vec<Address>,
 }
 
 impl DisclosureClient {
@@ -40,7 +43,16 @@ impl DisclosureClient {
                 .with_context(|| "failed to create view server")?;
         let svc: ViewServiceServer<ViewServer> = ViewServiceServer::new(view_server);
         let view_service = ViewServiceClient::new(box_grpc_svc::local(svc));
-        Ok(Self { view: view_service })
+        Ok(Self {
+            view: view_service,
+            tpc: TendermintProxyServiceClient::connect(url.to_string())
+                .await
+                .with_context(|| "failed to connect to proxy")?,
+            payment_keys: (0..=3)
+                .into_iter()
+                .map(|idx| fvk.payment_address(AddressIndex::new(idx)).0)
+                .collect::<Vec<_>>(),
+        })
     }
     pub async fn sync(&mut self) -> Result<()> {
         let mut stream = self.view().status_stream().await?;
@@ -56,9 +68,8 @@ impl DisclosureClient {
             .transaction_info_by_hash(hash.parse().with_context(|| "failed to parse hash")?)
             .await?;
 
-        let mut tpc = TendermintProxyServiceClient::connect("http://localhost:8080").await?;
-
-        let time = tpc
+        let time = self
+            .tpc
             .get_block_by_height(GetBlockByHeightRequest {
                 height: txn.height as i64,
             })
@@ -75,7 +86,7 @@ impl DisclosureClient {
         let mut tx = Transaction {
             transaction_hash: hash.to_string(),
             protocol: Protocol::Penumbra,
-            chain_id: txn.id.to_string(),
+            chain_id: txn.view.body_view.transaction_parameters.chain_id,
             counterparties: vec![],
             // todo: convert timestamp
             timestamp: format!("{}", time.seconds),
@@ -83,9 +94,14 @@ impl DisclosureClient {
         };
 
         for effect in txn.summary.effects {
+            let role = if self.payment_keys.contains(&effect.address.address()) {
+                Role::Sender
+            } else {
+                Role::Receiver
+            };
             tx.counterparties.push(Counterparty {
-                // this is not correct, need a better wat to determine if it is the recipient or receiver
-                role: Role::Receiver,
+                // this is not correct, need a better way to determine if it is the recipient or receiver
+                role,
                 address: effect.address.address().to_string(),
                 name: None,
                 assets: vec![],
@@ -104,17 +120,6 @@ impl AsMut<ViewServiceClient<BoxGrpcService>> for DisclosureClient {
 #[cfg(test)]
 mod test {
     use penumbra_sdk_keys::{keys::AddressIndex, Address};
-    use penumbra_sdk_proto::{
-        core::txhash::v1::TransactionId,
-        util::tendermint_proxy::v1::{
-            tendermint_proxy_service_client::TendermintProxyServiceClient, AbciQueryRequest,
-            GetBlockByHeightRequest, GetStatusRequest, GetTxRequest,
-        },
-        view::v1::{
-            BalancesRequest, IndexByAddressRequest, StatusRequest, TransactionInfoByHashRequest,
-            TransparentAddressRequest,
-        },
-    };
 
     use super::*;
     #[tokio::test]
@@ -127,6 +132,13 @@ mod test {
             .unwrap();
 
         dc.sync().await.unwrap();
+
+        let tx_info = dc
+            .transaction("c888fe430188c9a83aa450ab7f647c51f6224caf16e3b8b25177d5d9d300ccaf")
+            .await
+            .unwrap();
+        println!("{tx_info:#?}");
+        return;
 
         let vc = dc.view();
 
