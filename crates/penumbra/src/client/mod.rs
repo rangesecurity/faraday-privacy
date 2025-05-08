@@ -20,7 +20,7 @@ use {
     penumbra_sdk_view::{ViewClient, ViewServer},
     sha3::{Digest, Sha3_256},
     std::{collections::HashMap, str::FromStr, sync::Arc},
-    tokio::sync::{Mutex, RwLock, RwLockWriteGuard},
+    tokio::sync::Mutex,
     tonic::transport::Channel,
 };
 
@@ -41,7 +41,7 @@ impl DisclosureClient {
 
         let mut hasher = Sha3_256::new();
         hasher.update(fvk.to_string());
-        let storage_path = Utf8PathBuf::from_str(&hex::encode(hasher.finalize().to_vec()))?;
+        let storage_path = Utf8PathBuf::from_str(&hex::encode(hasher.finalize()))?;
         let registry_path = storage_path.join("registry.json");
         let registry_path = if registry_path.exists() {
             Some(registry_path)
@@ -208,7 +208,7 @@ mod test {
         let dc = DisclosureClient::new("http://localhost:8080/", &fvk)
             .await
             .unwrap();
-        let mut dc = dc.lock().await;
+        let dc = dc.lock().await;
         dc.sync().await.unwrap();
 
         let tx_info = dc

@@ -21,7 +21,7 @@ impl ApiClient {
         Arc::new(Self(cfg))
     }
     pub async fn disclose_transaction(&self, tx_hash: String, fvk: String) -> Result<Transaction> {
-        Ok(disclose_single_transaction(
+        disclose_single_transaction(
             &self.0,
             DisclosureRequestSingle {
                 full_viewing_key: fvk,
@@ -29,14 +29,14 @@ impl ApiClient {
             },
         )
         .await
-        .with_context(|| "failed to send request")?)
+        .with_context(|| "failed to send request")
     }
     pub async fn disclose_transactions(
         &self,
         tx_hashes: Vec<String>,
         fvk: String,
     ) -> Result<Vec<DisclosedTransactionResult>> {
-        Ok(disclose_multiple_transactions(
+        disclose_multiple_transactions(
             &self.0,
             DisclosureRequestMultiple {
                 full_viewing_key: fvk,
@@ -44,6 +44,6 @@ impl ApiClient {
             },
         )
         .await
-        .with_context(|| "failed to send request")?)
+        .with_context(|| "failed to send request")
     }
 }

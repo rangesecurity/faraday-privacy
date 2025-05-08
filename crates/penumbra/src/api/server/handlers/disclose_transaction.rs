@@ -66,7 +66,7 @@ pub async fn disclose_transaction(
     };
     match txn {
         Ok(tx_info) => {
-            return (
+            (
                 StatusCode::OK,
                 Json(DisclosedTransactionResult {
                     disclosure_transactions: Some(
@@ -80,7 +80,7 @@ pub async fn disclose_transaction(
                 .into_response()
         }
         Err(err) => {
-            return (
+            (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(DiscloseSingleTransactionError::Status500(CommonError {
                     code: StatusCode::INTERNAL_SERVER_ERROR.to_string(),
