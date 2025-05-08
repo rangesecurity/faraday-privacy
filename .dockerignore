@@ -1,0 +1,26 @@
+# ignore pre-existing rust compilation stuff
+**/target
+
+# remove .json files
+**/*.json
+
+# remove markdown files
+**/*.md
+
+# remove yaml files
+**/*.yaml
+**/*.yml
+
+# remove github stuff
+.github
+
+# remove make file
+**/Makefile
+
+# remove misc stuff (tarballs, license, etc..)
+**/*.sh
+**/LICENSE
+**/*.gz
+**/*.tar
+**/Dockerfile
+**/Dockerfile.dev
