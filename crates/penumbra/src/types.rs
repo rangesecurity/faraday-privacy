@@ -4,7 +4,6 @@ use penumbra_sdk_transaction::view::action_view::ActionView;
 pub struct TransactionType(String);
 
 impl From<&ActionView> for TransactionType {
-
     fn from(value: &ActionView) -> Self {
         let name = match value {
             ActionView::Spend(..) => "Spend",
@@ -37,9 +36,9 @@ impl From<&ActionView> for TransactionType {
     }
 }
 
-impl ToString for TransactionType {
-    fn to_string(&self) -> String {
-        self.0.clone()
+impl std::fmt::Display for TransactionType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
 

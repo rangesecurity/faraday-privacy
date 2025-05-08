@@ -8,7 +8,7 @@ use {
         models::{counterparty::Role, transaction::Protocol, Counterparty, Transaction},
     },
     futures::StreamExt,
-    penumbra_sdk_keys::{keys::AddressIndex, Address, AddressView, FullViewingKey},
+    penumbra_sdk_keys::{AddressView, FullViewingKey},
     penumbra_sdk_proto::{
         box_grpc_svc::{self, BoxGrpcService},
         util::tendermint_proxy::v1::{
@@ -16,11 +16,10 @@ use {
         },
         view::v1::{
             view_service_client::ViewServiceClient, view_service_server::ViewServiceServer,
-            StatusRequest,
         },
     },
     penumbra_sdk_view::{ViewClient, ViewServer},
-    std::{collections::HashMap, f32::consts::E, str::FromStr},
+    std::{collections::HashMap, str::FromStr},
     tonic::transport::Channel,
     types::TransactionType,
 };
@@ -190,7 +189,6 @@ impl AsMut<ViewServiceClient<BoxGrpcService>> for DisclosureClient {
 #[cfg(test)]
 mod test {
     use common::models::Asset;
-    use penumbra_sdk_keys::{keys::AddressIndex, Address};
 
     use super::*;
     #[tokio::test]
