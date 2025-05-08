@@ -12,8 +12,127 @@ info:
 servers:
   - url: https://api.disclosure.example.com/v1
     description: Production server
+
+paths:
+  /disclose/transaction:
+    post:
+      summary: Disclose a single transaction
+      operationId: discloseSingleTransaction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DisclosureRequestSingle'
+      responses:
+        '200':
+          description: Successfully disclosed transaction
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transaction'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /disclose/transactions:
+    post:
+      summary: Disclose multiple transactions
+      operationId: discloseMultipleTransactions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DisclosureRequestMultiple'
+      responses:
+        '200':
+          description: Results for each disclosed transaction
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DisclosedTransactionResult'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
 components:
   schemas:
+    DisclosureRequestSingle:
+      type: object
+      required:
+        - fullViewingKey
+        - transactionHash
+      properties:
+        fullViewingKey:
+          type: string
+          description: Full viewing key used to disclose the transaction
+          examples: ["penumbra1fvk..."]
+        transactionHash:
+          type: string
+          description: Transaction hash to disclose
+          examples: ["0xabc123..."]
+
+    DisclosureRequestMultiple:
+      type: object
+      required:
+        - fullViewingKey
+        - transactionHashes
+      properties:
+        fullViewingKey:
+          type: string
+          description: Full viewing key used to disclose transactions
+          examples: ["penumbra1fvk..."]
+        transactionHashes:
+          type: array
+          items:
+            type: string
+          examples: [["0xabc123...", "0xdef456..."]]
+
+    DisclosedTransactionResult:
+      type: object
+      properties:
+        disclosureTransactions:
+          type: object
+          required:
+            - transactions
+          properties:
+            transactions:
+              type: array
+              items:
+                $ref: '#/components/schemas/Transaction'
+        disclosureErrors:
+          type: object
+          required:
+            - errors
+          properties:
+            errors:
+              type: array
+              items:
+                $ref: '#/components/schemas/DisclosureError'
+
+
+
     Transaction:
       type: object
       required:
@@ -22,6 +141,7 @@ components:
         - chainId
         - counterparties
         - timestamp
+        - disclosureTypes
       properties:
         transactionHash:
           type: string
@@ -29,26 +149,60 @@ components:
           examples: ["0x1234567890abcdef"]
         protocol:
           type: string
-          description: Privacy protocol used (e.g., penumbra, solana)
           enum: [penumbra, solana_confidential_transaction]
+          description: Protocol used for the transaction
         chainId:
           type: string
-          description: Identifier of the blockchain where the transaction occurred
-          examples: ["1", "solana:mainnet-beta", "penumbra:mainnet-v1"]
+          description: Blockchain network ID
+          examples: ["1", "solana:mainnet-beta"]
         counterparties:
           type: array
-          description: Involved parties in the transaction
           items:
             $ref: '#/components/schemas/Counterparty'
         timestamp:
           type: string
           format: date-time
-          description: Timestamp of the transaction
         metadata:
           type: array
-          description: Optional metadata about the transaction
           items:
             $ref: '#/components/schemas/Metadata'
+
+    DisclosureError:
+      type: object
+      required:
+        - resultType
+        - transactionHash
+        - error
+        - errorTypes
+      properties:
+        resultType:
+          type: string
+          enum: [error]
+        transactionHash:
+          type: string
+        error:
+          $ref: '#/components/schemas/Error'
+        errorTypes:
+          type: array
+          description: Identifiers for the error types
+          items:
+            type: string
+          examples: [["transaction_not_found", "invalid_fvk"]]
+
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          description: Machine-readable error code
+          examples: ["transaction_not_found"]
+        message:
+          type: string
+          description: Human-readable error message
+          examples: ["Transaction hash not found for given FullViewingKey."]
 
     Counterparty:
       type: object
@@ -60,16 +214,12 @@ components:
         role:
           type: string
           enum: [sender, receiver]
-          description: Role of the counterparty in the transaction
         address:
           type: string
-          description: Address of the counterparty
         name:
           type: string
-          description: Optional identifier or label for the counterparty
         assets:
           type: array
-          description: Assets transferred by this counterparty
           items:
             $ref: '#/components/schemas/Asset'
 
@@ -81,44 +231,26 @@ components:
       properties:
         identifier:
           type: string
-          description: Asset identifier (e.g., token address, denomination)
+          description: Token symbol or denomination
           examples: ["USDC"]
         amount:
           type: string
-          description: Amount of asset transferred (as string to preserve precision)
-          examples: ["100.123"]
+          description: Value as string to preserve precision
+          examples: ["100.00"]
         decimals:
           type: integer
-          description: Number of decimal places for the asset
-          minimum: 0
           default: 18
+          minimum: 0
           examples: [6]
 
     Metadata:
       type: object
-      description: Optional metadata for additional transaction context
       properties:
         transactionType:
           type: string
-          description: Type of transaction
         tags:
           type: array
-          description: Custom tags for the transaction
           items:
             type: string
         notes:
           type: string
-          description: Additional notes about the transaction
-
-    Error:
-      type: object
-      required:
-        - code
-        - message
-      properties:
-        code:
-          type: string
-          description: Error code
-        message:
-          type: string
-          description: Error message

@@ -13,13 +13,12 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Asset {
-    /// Asset identifier (e.g., token address, denomination)
+    /// Token symbol or denomination
     #[serde(rename = "identifier")]
     pub identifier: String,
-    /// Amount of asset transferred (as string to preserve precision)
+    /// Value as string to preserve precision
     #[serde(rename = "amount")]
     pub amount: String,
-    /// Number of decimal places for the asset
     #[serde(rename = "decimals", skip_serializing_if = "Option::is_none")]
     pub decimals: Option<u32>,
 }

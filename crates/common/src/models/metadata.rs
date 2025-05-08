@@ -11,22 +11,17 @@
 use crate::models;
 use serde::{Deserialize, Serialize};
 
-/// Metadata : Optional metadata for additional transaction context
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Metadata {
-    /// Type of transaction
     #[serde(rename = "transactionType", skip_serializing_if = "Option::is_none")]
     pub transaction_type: Option<String>,
-    /// Custom tags for the transaction
     #[serde(rename = "tags", skip_serializing_if = "Option::is_none")]
     pub tags: Option<Vec<String>>,
-    /// Additional notes about the transaction
     #[serde(rename = "notes", skip_serializing_if = "Option::is_none")]
     pub notes: Option<String>,
 }
 
 impl Metadata {
-    /// Optional metadata for additional transaction context
     pub fn new() -> Metadata {
         Metadata {
             transaction_type: None,

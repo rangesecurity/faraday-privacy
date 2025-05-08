@@ -3,6 +3,11 @@ name = "penumbra"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+default = ["api-server", "api-client"]
+api-server = ["axum", "reqwest", "tower-http", "http"]
+api-client = ["axum", "reqwest"]
+
 [dependencies.common]
 path = "../common"
 
@@ -45,6 +50,33 @@ version = "1"
 
 [dependencies.camino]
 version = "1"
+
+[dependencies.hex]
+version = "0.4"
+
+[dependencies.log]
+version = "0.4"
+
+[dependencies.axum]
+version = "0.8.4"
+optional = true
+
+[dependencies.tower-http]
+version = "0.6"
+features = ["cors"]
+optional = true
+
+[dependencies.http]
+version = "1"
+optional = true
+
+[dependencies.reqwest] 
+version = "^0.12"
+features = ["json", "multipart"]
+optional = true
+
+[dependencies.sha3]
+version = "0.10"
 
 [dev-dependencies.serde_json]
 version = "1"

@@ -16,19 +16,16 @@ pub struct Transaction {
     /// Unique transaction hash/identifier
     #[serde(rename = "transactionHash")]
     pub transaction_hash: String,
-    /// Privacy protocol used (e.g., penumbra, solana)
+    /// Protocol used for the transaction
     #[serde(rename = "protocol")]
     pub protocol: Protocol,
-    /// Identifier of the blockchain where the transaction occurred
+    /// Blockchain network ID
     #[serde(rename = "chainId")]
     pub chain_id: String,
-    /// Involved parties in the transaction
     #[serde(rename = "counterparties")]
     pub counterparties: Vec<models::Counterparty>,
-    /// Timestamp of the transaction
     #[serde(rename = "timestamp")]
     pub timestamp: String,
-    /// Optional metadata about the transaction
     #[serde(rename = "metadata", skip_serializing_if = "Option::is_none")]
     pub metadata: Option<Vec<models::Metadata>>,
 }
@@ -45,7 +42,7 @@ impl Transaction {
         }
     }
 }
-/// Privacy protocol used (e.g., penumbra, solana)
+/// Protocol used for the transaction
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum Protocol {
     #[serde(rename = "penumbra")]

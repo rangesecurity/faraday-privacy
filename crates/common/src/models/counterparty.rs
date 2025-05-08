@@ -13,16 +13,12 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Counterparty {
-    /// Role of the counterparty in the transaction
     #[serde(rename = "role")]
     pub role: Role,
-    /// Address of the counterparty
     #[serde(rename = "address")]
     pub address: String,
-    /// Optional identifier or label for the counterparty
     #[serde(rename = "name", skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
-    /// Assets transferred by this counterparty
     #[serde(rename = "assets")]
     pub assets: Vec<models::Asset>,
 }
@@ -37,7 +33,7 @@ impl Counterparty {
         }
     }
 }
-/// Role of the counterparty in the transaction
+/// 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum Role {
     #[serde(rename = "sender")]

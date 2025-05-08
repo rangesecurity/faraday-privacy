@@ -12,20 +12,15 @@ use crate::models;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
-pub struct Error {
-    /// Machine-readable error code
-    #[serde(rename = "code")]
-    pub code: String,
-    /// Human-readable error message
-    #[serde(rename = "message")]
-    pub message: String,
+pub struct DisclosedTransactionResultDisclosureErrors {
+    #[serde(rename = "errors")]
+    pub errors: Vec<models::DisclosureError>,
 }
 
-impl Error {
-    pub fn new(code: String, message: String) -> Error {
-        Error {
-            code,
-            message,
+impl DisclosedTransactionResultDisclosureErrors {
+    pub fn new(errors: Vec<models::DisclosureError>) -> DisclosedTransactionResultDisclosureErrors {
+        DisclosedTransactionResultDisclosureErrors {
+            errors,
         }
     }
 }

@@ -12,20 +12,19 @@ use crate::models;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
-pub struct Error {
-    /// Machine-readable error code
-    #[serde(rename = "code")]
-    pub code: String,
-    /// Human-readable error message
-    #[serde(rename = "message")]
-    pub message: String,
+pub struct DisclosureRequestMultiple {
+    /// Full viewing key used to disclose transactions
+    #[serde(rename = "fullViewingKey")]
+    pub full_viewing_key: String,
+    #[serde(rename = "transactionHashes")]
+    pub transaction_hashes: Vec<String>,
 }
 
-impl Error {
-    pub fn new(code: String, message: String) -> Error {
-        Error {
-            code,
-            message,
+impl DisclosureRequestMultiple {
+    pub fn new(full_viewing_key: String, transaction_hashes: Vec<String>) -> DisclosureRequestMultiple {
+        DisclosureRequestMultiple {
+            full_viewing_key,
+            transaction_hashes,
         }
     }
 }
