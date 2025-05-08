@@ -1,4 +1,7 @@
 #! /bin/bash
+cd "$1"
+
+cargo fmt
 
 CLIPPY_FLAGS=(
     "-D" "warnings"                # Make all warnings deny
@@ -17,5 +20,5 @@ CLIPPY_FLAGS=(
 )
 
 # Run clippy on all targets (including tests and examples)
-cargo clippy --fix -- "${CLIPPY_FLAGS[@]}" "$1"
+cargo clippy --fix -- "${CLIPPY_FLAGS[@]}"
 
