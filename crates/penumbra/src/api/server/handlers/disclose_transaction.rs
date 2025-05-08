@@ -13,10 +13,12 @@ use {
     std::{str::FromStr, sync::Arc},
 };
 
+#[axum::debug_handler]
 pub async fn disclose_transaction(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<DisclosureRequestSingle>,
 ) -> impl IntoResponse {
+    let state = state.clone();
     let fvk = match FullViewingKey::from_str(&payload.full_viewing_key) {
         Ok(fvk) => fvk,
         Err(err) => {
@@ -30,7 +32,7 @@ pub async fn disclose_transaction(
                 .into_response()
         }
     };
-    let mut dc = match DisclosureClient::new(&state.url, &fvk).await {
+    let dc = match DisclosureClient::new(&state.url, &fvk).await {
         Ok(dc) => dc,
         Err(err) => {
             return (
@@ -44,18 +46,26 @@ pub async fn disclose_transaction(
         }
     };
 
-    if let Err(err) = dc.sync().await {
-        return (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(DiscloseSingleTransactionError::Status500(CommonError {
-                code: StatusCode::INTERNAL_SERVER_ERROR.to_string(),
-                message: format!("failed to synchronize disclosure client {err:#?}"),
-            })),
-        )
-            .into_response();
+    {
+        let dc = dc.lock().await;
+
+        if let Err(err) = dc.sync().await {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(DiscloseSingleTransactionError::Status500(CommonError {
+                    code: StatusCode::INTERNAL_SERVER_ERROR.to_string(),
+                    message: format!("failed to synchronize disclosure client {err:#?}"),
+                })),
+            )
+                .into_response();
+        }
     }
 
-    match dc.transaction(&payload.transaction_hash).await {
+    let txn = {
+        let dc = dc.lock().await;
+        dc.transaction(&payload.transaction_hash).await
+    };
+    match txn {
         Ok(tx_info) => {
             return (
                 StatusCode::OK,

@@ -60,6 +60,7 @@ version = "0.4"
 [dependencies.axum]
 version = "0.8.4"
 optional = true
+features = ["macros"]
 
 [dependencies.tower-http]
 version = "0.6"

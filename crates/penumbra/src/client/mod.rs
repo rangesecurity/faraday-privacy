@@ -19,19 +19,21 @@ use {
     },
     penumbra_sdk_view::{ViewClient, ViewServer},
     sha3::{Digest, Sha3_256},
-    std::{collections::HashMap, str::FromStr},
+    std::{collections::HashMap, str::FromStr, sync::Arc},
+    tokio::sync::{Mutex, RwLock, RwLockWriteGuard},
     tonic::transport::Channel,
 };
 
 #[derive(Clone)]
 pub struct DisclosureClient {
-    view: ViewServiceClient<BoxGrpcService>,
-    tpc: TendermintProxyServiceClient<Channel>,
+    view: Arc<Mutex<ViewServiceClient<BoxGrpcService>>>,
+    tpc: Arc<Mutex<TendermintProxyServiceClient<Channel>>>,
     fvk: FullViewingKey,
 }
 
 impl DisclosureClient {
-    pub async fn new(url: &str, fvk: &FullViewingKey) -> Result<Self> {
+    /// We need to wrap in Arc<RwLock<T>> because ViewServiceClient is not Sync
+    pub async fn new(url: &str, fvk: &FullViewingKey) -> Result<Arc<Mutex<Self>>> {
         // store the db on disk using the filename as the sha3 hash of the fvk
         // this way we arent storing the actual fvk on disk in plaintext
         // this also allows the DisclosureClient to be reused within the api service
@@ -54,31 +56,37 @@ impl DisclosureClient {
         let svc: ViewServiceServer<ViewServer> = ViewServiceServer::new(view_server);
         let view_service = ViewServiceClient::new(box_grpc_svc::local(svc));
 
-        Ok(Self {
-            view: view_service,
-            tpc: TendermintProxyServiceClient::connect(url.to_string())
-                .await
-                .with_context(|| "failed to connect to proxy")?,
+        Ok(Arc::new(Mutex::new(Self {
+            view: Arc::new(Mutex::new(view_service)),
+            tpc: Arc::new(Mutex::new(
+                TendermintProxyServiceClient::connect(url.to_string())
+                    .await
+                    .with_context(|| "failed to connect to proxy")?,
+            )),
             fvk: fvk.clone(),
-        })
+        })))
     }
-    pub async fn sync(&mut self) -> Result<()> {
-        let mut stream = self.view().status_stream().await?;
+    pub async fn sync(&self) -> Result<()> {
+        let view = self.view.clone();
+        let mut view = view.lock().await;
+        let view: &mut dyn ViewClient = &mut *view;
+        let mut stream = view.status_stream().await?;
         while let Some(Ok(_)) = stream.next().await {}
         Ok(())
     }
-    pub fn view(&mut self) -> &mut impl ViewClient {
-        &mut self.view
-    }
-    pub async fn transaction(&mut self, hash: &str) -> Result<Transaction> {
-        let txn = self
-            .view()
-            .transaction_info_by_hash(hash.parse().with_context(|| "failed to parse hash")?)
-            .await?;
-
-        let time = self
-            .tpc
-            .get_block_by_height(GetBlockByHeightRequest {
+    pub async fn transaction(&self, hash: &str) -> Result<Transaction> {
+        let txn = {
+            let view = self.view.clone();
+            let mut view = view.lock().await;
+            let view: &mut dyn ViewClient = &mut *view;
+            view.transaction_info_by_hash(hash.parse().with_context(|| "failed to parse hash")?)
+                .await
+                .with_context(|| "failed to get tx hash")?
+        };
+        let time = {
+            let tpc = self.tpc.clone();
+            let mut tpc = tpc.lock().await;
+            tpc.get_block_by_height(GetBlockByHeightRequest {
                 height: txn.height as i64,
             })
             .await
@@ -89,7 +97,8 @@ impl DisclosureClient {
             .header
             .with_context(|| "header is None")?
             .time
-            .with_context(|| "time is None")?;
+            .with_context(|| "time is None")?
+        };
         let mut assets: HashMap<&penumbra_sdk_asset::asset::Id, common::models::Asset> =
             Default::default();
         for (asset_id, denom_metadata) in txn.perspective.denoms.iter() {
@@ -97,16 +106,16 @@ impl DisclosureClient {
                 asset_id,
                 common::models::Asset {
                     identifier: denom_metadata.base_denom().denom.clone(),
-                    // we're just using the `assets` map to aggregate metadata information
+                    // we're just using the assets map to aggregate metadata information
                     // of all denoms in the transaction, so we dont need to store teh amount
                     amount: "".to_string(),
                     decimals: Some(denom_metadata.default_unit().exponent() as u32),
                 },
             );
         }
-        // we want additional metadata to describe the effects of the transaction sowe can skip including the various `*Output*` actions
-        // a transfer from A->B would have two actions `Spend` and `Output`
-        // the `Output` metadata is not relevant for disclosure, as we can
+        // we want additional metadata to describe the effects of the transaction sowe can skip including the various *Output* actions
+        // a transfer from A->B would have two actions Spend and Output
+        // the Output metadata is not relevant for disclosure, as we can
         // simply disclose that this transaction includes as pend
 
         let metadata = txn
@@ -187,12 +196,6 @@ impl DisclosureClient {
     }
 }
 
-impl AsMut<ViewServiceClient<BoxGrpcService>> for DisclosureClient {
-    fn as_mut(&mut self) -> &mut ViewServiceClient<BoxGrpcService> {
-        &mut self.view
-    }
-}
-
 #[cfg(test)]
 mod test {
     use common::models::Asset;
@@ -202,10 +205,10 @@ mod test {
     async fn test_disclosure_client_new() {
         let fvk = FullViewingKey::from_str("penumbrafullviewingkey1jzwnl8k7hhqnvf06m4hfdwtsyc9ucce4nq6slpvxm8l9jgse0gg676654ea865dz4mn9ez33q3ysnedcplxey5g589cx4xl0duqkzrc0gqscq").unwrap();
 
-        let mut dc = DisclosureClient::new("http://localhost:8080/", &fvk)
+        let dc = DisclosureClient::new("http://localhost:8080/", &fvk)
             .await
             .unwrap();
-
+        let mut dc = dc.lock().await;
         dc.sync().await.unwrap();
 
         let tx_info = dc

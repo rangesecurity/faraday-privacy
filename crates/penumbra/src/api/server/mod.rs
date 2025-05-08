@@ -1,11 +1,10 @@
-pub mod router;
 pub mod handlers;
+pub mod router;
 
 use {
-    anyhow::{Result, Context},
+    anyhow::{Context, Result},
     tokio::signal,
 };
-
 
 pub async fn start_api(url: String, listen_url: String) -> Result<()> {
     let router = router::new(url);
