@@ -13,7 +13,6 @@ use {
     std::{str::FromStr, sync::Arc},
 };
 
-#[axum::debug_handler]
 pub async fn disclose_transaction(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<DisclosureRequestSingle>,
@@ -69,14 +68,14 @@ pub async fn disclose_transaction(
         Ok(tx_info) => {
             return (
                 StatusCode::OK,
-                Json(vec![DisclosedTransactionResult {
+                Json(DisclosedTransactionResult {
                     disclosure_transactions: Some(
                         DisclosedTransactionResultDisclosureTransactions {
                             transactions: vec![tx_info],
                         },
                     ),
                     disclosure_errors: None,
-                }]),
+                }),
             )
                 .into_response()
         }

@@ -84,3 +84,10 @@ version = "1"
 
 [dev-dependencies.hex]
 version = "0.4"
+
+[dev-dependencies.tower]
+version = "0.5"
+features = ["util"]
+
+[dev-dependencies.http-body-util]
+version = "0.1"
