@@ -30,7 +30,7 @@ pub struct Transaction {
     pub timestamp: String,
     /// Optional metadata about the transaction
     #[serde(rename = "metadata", skip_serializing_if = "Option::is_none")]
-    pub metadata: Option<models::Metadata>,
+    pub metadata: Option<Vec<models::Metadata>>,
 }
 
 impl Transaction {

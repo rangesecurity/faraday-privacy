@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 pub struct Metadata {
     /// Type of transaction
     #[serde(rename = "transactionType", skip_serializing_if = "Option::is_none")]
-    pub transaction_type: Option<TransactionType>,
+    pub transaction_type: Option<String>,
     /// Custom tags for the transaction
     #[serde(rename = "tags", skip_serializing_if = "Option::is_none")]
     pub tags: Option<Vec<String>>,
@@ -33,20 +33,6 @@ impl Metadata {
             tags: None,
             notes: None,
         }
-    }
-}
-/// Type of transaction
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
-pub enum TransactionType {
-    #[serde(rename = "transfer")]
-    Transfer,
-    #[serde(rename = "swap")]
-    Swap,
-}
-
-impl Default for TransactionType {
-    fn default() -> TransactionType {
-        Self::Transfer
     }
 }
 

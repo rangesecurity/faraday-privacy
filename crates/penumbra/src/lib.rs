@@ -1,3 +1,5 @@
+pub mod types;
+
 use {
     anyhow::{Context, Result},
     camino::Utf8PathBuf,
@@ -14,11 +16,13 @@ use {
         },
         view::v1::{
             view_service_client::ViewServiceClient, view_service_server::ViewServiceServer,
+            StatusRequest,
         },
     },
     penumbra_sdk_view::{ViewClient, ViewServer},
-    std::str::FromStr,
+    std::{collections::HashMap, f32::consts::E, str::FromStr},
     tonic::transport::Channel,
+    types::TransactionType,
 };
 
 pub struct DisclosureClient {
@@ -40,14 +44,16 @@ impl DisclosureClient {
             ViewServer::load_or_initialize(Some(storage_path), registry_path, fvk, url.parse()?)
                 .await
                 .with_context(|| "failed to create view server")?;
+
         let svc: ViewServiceServer<ViewServer> = ViewServiceServer::new(view_server);
         let view_service = ViewServiceClient::new(box_grpc_svc::local(svc));
+
         Ok(Self {
             view: view_service,
             tpc: TendermintProxyServiceClient::connect(url.to_string())
                 .await
                 .with_context(|| "failed to connect to proxy")?,
-            fvk: fvk.clone()
+            fvk: fvk.clone(),
         })
     }
     pub async fn sync(&mut self) -> Result<()> {
@@ -78,31 +84,97 @@ impl DisclosureClient {
             .with_context(|| "header is None")?
             .time
             .with_context(|| "time is None")?;
+        let mut assets: HashMap<&penumbra_sdk_asset::asset::Id, common::models::Asset> =
+            Default::default();
+        for (asset_id, denom_metadata) in txn.perspective.denoms.iter() {
+            assets.insert(
+                asset_id,
+                common::models::Asset {
+                    identifier: denom_metadata.base_denom().denom.clone(),
+                    // we're just using the `assets` map to aggregate metadata information
+                    // of all denoms in the transaction, so we dont need to store teh amount
+                    amount: "".to_string(),
+                    decimals: Some(denom_metadata.default_unit().exponent() as u32),
+                },
+            );
+        }
+        // we want additional metadata to describe the effects of the transaction sowe can skip including the various `*Output*` actions
+        // a transfer from A->B would have two actions `Spend` and `Output`
+        // the `Output` metadata is not relevant for disclosure, as we can
+        // simply disclose that this transaction includes as pend
+
+        let metadata = txn
+            .view
+            .body_view
+            .action_views
+            .iter()
+            .filter_map(|action| {
+                let transaction_type = TransactionType::from(action);
+                let transaction_type_str = AsRef::<String>::as_ref(&transaction_type);
+
+                if transaction_type_str.eq("Output")
+                    || transaction_type_str.eq("CommunityPoolOutput")
+                {
+                    return None;
+                }
+
+                Some(common::models::Metadata {
+                    transaction_type: Some(transaction_type.to_string()),
+                    tags: None,
+                    notes: None,
+                })
+            })
+            .collect::<Vec<_>>();
 
         let mut tx = Transaction {
             transaction_hash: hash.to_string(),
             protocol: Protocol::Penumbra,
             chain_id: txn.view.body_view.transaction_parameters.chain_id,
             counterparties: vec![],
-            // todo: convert timestamp
+            // todo: should we foramt the timestamp into a human readable value?
             timestamp: format!("{}", time.seconds),
-            metadata: None,
+            metadata: if metadata.is_empty() {
+                None
+            } else {
+                Some(metadata)
+            },
         };
 
         for effect in txn.summary.effects {
-            let role = if let AddressView::Decoded { .. } = self.fvk.view_address(
-                effect.address.address()
-            ) {
+            let role = if let AddressView::Decoded { .. } =
+                self.fvk.view_address(effect.address.address())
+            {
                 Role::Sender
             } else {
                 Role::Receiver
             };
+            let balance_info = match role {
+                Role::Receiver => effect
+                    .balance
+                    .required()
+                    .next()
+                    .with_context(|| "failed to get receiver balance info")?,
+                Role::Sender => effect
+                    .balance
+                    .provided()
+                    .next()
+                    .with_context(|| "failed to get sender balance info")?,
+            };
+
+            let denom_metadata = assets
+                .get(&balance_info.asset_id)
+                .with_context(|| format!("failed to get metadata for {}", balance_info.asset_id))?;
+
             tx.counterparties.push(Counterparty {
                 // this is not correct, need a better way to determine if it is the recipient or receiver
                 role,
                 address: effect.address.address().to_string(),
                 name: None,
-                assets: vec![],
+                assets: vec![common::models::Asset {
+                    identifier: denom_metadata.identifier.clone(),
+                    amount: balance_info.amount.to_string(),
+                    decimals: denom_metadata.decimals,
+                }],
             })
         }
         Ok(tx)
@@ -117,13 +189,13 @@ impl AsMut<ViewServiceClient<BoxGrpcService>> for DisclosureClient {
 
 #[cfg(test)]
 mod test {
+    use common::models::Asset;
     use penumbra_sdk_keys::{keys::AddressIndex, Address};
 
     use super::*;
     #[tokio::test]
     async fn test_disclosure_client_new() {
         let fvk = FullViewingKey::from_str("penumbrafullviewingkey1jzwnl8k7hhqnvf06m4hfdwtsyc9ucce4nq6slpvxm8l9jgse0gg676654ea865dz4mn9ez33q3ysnedcplxey5g589cx4xl0duqkzrc0gqscq").unwrap();
-        let idx = fvk.payment_address(AddressIndex::new(0));
 
         let mut dc = DisclosureClient::new("mydb", "http://localhost:8080/", &fvk)
             .await
@@ -136,29 +208,32 @@ mod test {
             .await
             .unwrap();
         println!("{tx_info:#?}");
-        return;
-
-        let vc = dc.view();
-
-        let res = vc.balances(AddressIndex::new(0), None).await.unwrap();
-
-        let res = vc
-            .transaction_info_by_hash(
-                "c888fe430188c9a83aa450ab7f647c51f6224caf16e3b8b25177d5d9d300ccaf"
-                    //  .to_uppercase()
-                    .parse()
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-        println!("{:#?}", res.summary);
-        // print memo view (contains address information)
-        // println!("{:#?}", res.view.body_view.memo_view);
-
-        // print transaction parameters (contains chain information)
-        // println!("{:#?}", res.view.body_view.transaction_parameters);
-
-        // print action views (contains tx summaries, etc...)
-        // println!("{:#?}", res.view.body_view.action_views);
+        assert_eq!(
+            tx_info.transaction_hash,
+            "c888fe430188c9a83aa450ab7f647c51f6224caf16e3b8b25177d5d9d300ccaf"
+        );
+        assert_eq!(tx_info.protocol, Protocol::Penumbra);
+        assert_eq!(tx_info.chain_id, "penumbra-testnet-phobos-x3b26d34a");
+        assert!(tx_info.counterparties.contains(&Counterparty {
+            role: Role::Receiver,
+            address: "penumbra147mfall0zr6am5r45qkwht7xqqrdsp50czde7empv7yq2nk3z8yyfh9k9520ddgswkmzar22vhz9dwtuem7uxw0qytfpv7lk3q9dp8ccaw2fn5c838rfackazmgf3ahh09cxmz".to_string(),
+            name: None,
+            assets: vec![Asset {
+                identifier: "wtest_usd".to_string(),
+                amount: "100000000000000000000".to_string(),
+                decimals: Some(18)
+            }]
+        }));
+        assert!(tx_info.counterparties.contains(&Counterparty {
+            role: Role::Sender,
+            address: "penumbra1alp9a75s438d33rs5nt245ue2wctfne7x4c3v7afyslmwefltgpzm7r0jgmxphrcva6h44v9pe3esstnkw5fsha54rcp7xpmaphxx76scql92mefzg366ckwcy425s3y5657ll".to_string(),
+            name: None,
+            assets: vec![Asset {
+                identifier: "wtest_usd".to_string(),
+                amount: "100000000000000000000".to_string(),
+                decimals: Some(18)
+            }]
+        }));
+        println!("{}", serde_json::to_string(&tx_info).unwrap());
     }
 }

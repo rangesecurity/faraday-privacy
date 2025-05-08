@@ -19,6 +19,13 @@ tag = "v1.4.0"
 git = "https://github.com/penumbra-zone/penumbra"
 tag = "v1.4.0"
 features = ["box-grpc"]
+[dependencies.penumbra-sdk-asset]
+git = "https://github.com/penumbra-zone/penumbra"
+tag = "v1.4.0"
+
+[dependencies.penumbra-sdk-transaction]
+git = "https://github.com/penumbra-zone/penumbra"
+tag = "v1.4.0"
 
 [dependencies.futures]
 version = "0.3"
@@ -37,6 +44,9 @@ features = ["full"]
 version = "1"
 
 [dependencies.camino]
+version = "1"
+
+[dev-dependencies.serde_json]
 version = "1"
 
 [dev-dependencies.hex]

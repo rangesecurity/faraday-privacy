@@ -45,8 +45,10 @@ components:
           format: date-time
           description: Timestamp of the transaction
         metadata:
-          $ref: '#/components/schemas/Metadata'
+          type: array
           description: Optional metadata about the transaction
+          items:
+            $ref: '#/components/schemas/Metadata'
 
     Counterparty:
       type: object
@@ -98,7 +100,6 @@ components:
       properties:
         transactionType:
           type: string
-          enum: [transfer, swap]
           description: Type of transaction
         tags:
           type: array
