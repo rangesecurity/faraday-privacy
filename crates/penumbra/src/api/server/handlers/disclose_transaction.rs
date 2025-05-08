@@ -65,29 +65,23 @@ pub async fn disclose_transaction(
         dc.transaction(&payload.transaction_hash).await
     };
     match txn {
-        Ok(tx_info) => {
-            (
-                StatusCode::OK,
-                Json(DisclosedTransactionResult {
-                    disclosure_transactions: Some(
-                        DisclosedTransactionResultDisclosureTransactions {
-                            transactions: vec![tx_info],
-                        },
-                    ),
-                    disclosure_errors: None,
+        Ok(tx_info) => (
+            StatusCode::OK,
+            Json(DisclosedTransactionResult {
+                disclosure_transactions: Some(DisclosedTransactionResultDisclosureTransactions {
+                    transactions: vec![tx_info],
                 }),
-            )
-                .into_response()
-        }
-        Err(err) => {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(DiscloseSingleTransactionError::Status500(CommonError {
-                    code: StatusCode::INTERNAL_SERVER_ERROR.to_string(),
-                    message: format!("failed to generate disclosure bundle {err:#?}"),
-                })),
-            )
-                .into_response()
-        }
+                disclosure_errors: None,
+            }),
+        )
+            .into_response(),
+        Err(err) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(DiscloseSingleTransactionError::Status500(CommonError {
+                code: StatusCode::INTERNAL_SERVER_ERROR.to_string(),
+                message: format!("failed to generate disclosure bundle {err:#?}"),
+            })),
+        )
+            .into_response(),
     }
 }
