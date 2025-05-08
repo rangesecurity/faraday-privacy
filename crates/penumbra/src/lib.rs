@@ -5,3 +5,6 @@
 pub mod api;
 pub mod client;
 pub mod types;
+
+//#[cfg(feature = "cli")]
+//pub mod bin;

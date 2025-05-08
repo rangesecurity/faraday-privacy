@@ -1,12 +1,21 @@
 [package]
-name = "penumbra"
+name = "penumbra-disclosure"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+name = "penumbra_disclosure"
+path = "src/lib.rs"
+
+[[bin]]
+name = "penumbra-disclosure-cli"
+path = "src/bin.rs"
+
 [features]
-default = ["api-server", "api-client"]
+default = ["api-server", "api-client", "cli"]
 api-server = ["axum", "reqwest", "tower-http", "http"]
 api-client = ["axum", "reqwest"]
+cli = ["clap", "api-server", "api-client"]
 
 [dependencies.common]
 path = "../common"
@@ -78,6 +87,11 @@ optional = true
 
 [dependencies.sha3]
 version = "0.10"
+
+[dependencies.clap]
+version = "4"
+features = ["derive"]
+optional = true
 
 [dev-dependencies.serde_json]
 version = "1"
