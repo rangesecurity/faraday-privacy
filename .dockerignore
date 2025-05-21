@@ -1,6 +1,12 @@
 # ignore pre-existing rust compilation stuff
 **/target
 
+# ignore compiled cli's
+**/penumbra-disclosure-cli
+
+# ignore test database
+**/mydb
+
 # remove .json files
 **/*.json
 

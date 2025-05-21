@@ -1,62 +1,199 @@
-# disclosure-library
+# Disclosure Library
 
-# Specification
+The disclosure library is used to create disclosure data bundles for Penumbra for auditing purposes that can be used to reveal information about transactions that a wallet has sent on the Penumbra network. The library includes a CLI, an sdk client, and an API that can be used to generate the disclosure bundles.
 
-OpenAPI is used to manage the API calls, response types, etc... For documentation about how to query the API you can take the `openapi.yaml` file and paste it into an editor like swagger (https://editor-next.swagger.io/)
+The API allows remote users to create disclosure data bundles without having to use an RPC, while the CLI + sdk client can be used directly with an RPC to generate these bundles.
+
+# API Specification
+
+OpenAPI is used to describe the data bundles, in addition to the API calls that can be used with a deployed version of the API. For documentation, copy the contents of `openapi.yaml` file and paste it into an editor like swagger (https://editor-next.swagger.io/).
+
+## Transactions
+
+For any generated disclosure bundle, the main data type is the `Transaction` type, which includes:
+
+* Transaction hash of the disclosed transaction
+* The chain id the transaction was sent on
+* Counterparties involved
+  * Whether the address is a sender or receiver
+  * The assets involved, including asset identifiers, amounts, and decimals
+* Metadata used to describe the different action views of a transaction
+
+For example the JSON representation of a simple token transfer disclosure
+
+```json
+{
+    "transactionHash": "c888fe430188c9a83aa450ab7f647c51f6224caf16e3b8b25177d5d9d300ccaf",
+    "protocol": "penumbra",
+    "chainId": "penumbra-testnet-phobos-x3b26d34a",
+    "counterparties": [
+        {
+            "role": "receiver",
+            "address": "penumbra147mfall0zr6am5r45qkwht7xqqrdsp50czde7empv7yq2nk3z8yyfh9k9520ddgswkmzar22vhz9dwtuem7uxw0qytfpv7lk3q9dp8ccaw2fn5c838rfackazmgf3ahh09cxmz",
+            "assets": [
+                {
+                    "identifier": "wtest_usd",
+                    "amount": "100000000000000000000",
+                    "decimals": 18
+                }
+            ]
+        },
+        {
+            "role": "sender",
+            "address": "penumbra1alp9a75s438d33rs5nt245ue2wctfne7x4c3v7afyslmwefltgpzm7r0jgmxphrcva6h44v9pe3esstnkw5fsha54rcp7xpmaphxx76scql92mefzg366ckwcy425s3y5657ll",
+            "assets": [
+                {
+                    "identifier": "wtest_usd",
+                    "amount": "100000000000000000000",
+                    "decimals": 18
+                }
+            ]
+        }
+    ],
+    "timestamp": "1745289093",
+    "metadata": [
+        {
+            "transactionType": "Spend"
+        }
+    ]
+}
+```
 
 # Docker Image
 
-## Penumbra
-
-To compile the docker image for disclosing penumbra transactions
+A dockerfile can be used to build the disclosure library CLI, and to subsequently run the API service. To compile the docker image you may run the following command
 
 ```shell
-$>  DOCKER_BUILDKIT=1 docker \
-  build \
-  --build-arg BUILDKIT_INLINE_CACHE=1 \
-  -t penumbra-disclosure-cli:latest \
-  -f Dockerfile.penumbra \
-  .
+$> make build-penumbra-docker-release
 ```
 
-You can run the API service with a docker compose file like the following
+# Docker Compose
 
-```yaml
-services:
-  penumbra:
-    image: penumbra-disclosure-cli:latest
-    command: --rpc-url http://penumbra_rpc.example.com:8080 api --listen-url 0.0.0.0:1337
-    ports:
-      - 1337:1337
+After building the docker image, you can use the corresponding docker compose file to start the API. The `docker-compose.yml` file expects to be used with a locally running devnet. See the [penumbra guide](https://guide.penumbra.zone/dev/devnet-quickstart) for instructions on how to deploy the devnet.
+
+# CLI
+
+
+To build the CLI for the disclosure library run the following command
+
+```shell
+$> make build-penumbra-cli
+# OR
+$> make build-penumbra-cli-release
 ```
 
-You can then generate disclosure bundles from the CLI like so
+After building the CLI, you can generate disclosure bundles directly from the CLI for single transactions like so
+
+```shell
+$> ./penumbra-disclosure-cli disclose-transaction --full-viewing-key FVK --transaction-hash TX_HASH
+```
+
+# SDK Client
+
+The SDK client provides a standalone client that can be used to disclose transactions. To avoid having to resynchronize the view server each time the client is used, the storage database is persisted on disk.
+
+To facilitate use of the client with multiple different FVK's, the name of the database on disk is the SHA3 hash of the FVK in order to prevent leaking of the FVK.
+
+# Example Query (Single Disclosure)
+
+You can use the following curl command as a template for disclosing single transactions. You'll want to replace the `fullViewingKey` and `transactionHash` with values relevant to your own wallet.
 
 ```shell
 $> curl -X POST \
     -H "Content-Type: application/json" \
     -d '{"fullViewingKey": "penumbrafullviewingkey1jzwnl8k7hhqnvf06m4hfdwtsyc9ucce4nq6slpvxm8l9jgse0gg676654ea865dz4mn9ez33q3ysnedcplxey5g589cx4xl0duqkzrc0gqscq", "transactionHash": "c888fe430188c9a83aa450ab7f647c51f6224caf16e3b8b25177d5d9d300ccaf"}' \
     http://localhost:1337/disclose/transaction
-{"disclosureTransactions":{"transactions":[{"transactionHash":"c888fe430188c9a83aa450ab7f647c51f6224caf16e3b8b25177d5d9d300ccaf","protocol":"penumbra","chainId":"penumbra-testnet-phobos-x3b26d34a","counterparties":[{"role":"receiver","address":"penumbra147mfall0zr6am5r45qkwht7xqqrdsp50czde7empv7yq2nk3z8yyfh9k9520ddgswkmzar22vhz9dwtuem7uxw0qytfpv7lk3q9dp8ccaw2fn5c838rfackazmgf3ahh09cxmz","assets":[{"identifier":"wtest_usd","amount":"100000000000000000000","decimals":18}]},{"role":"sender","address":"penumbra1alp9a75s438d33rs5nt245ue2wctfne7x4c3v7afyslmwefltgpzm7r0jgmxphrcva6h44v9pe3esstnkw5fsha54rcp7xpmaphxx76scql92mefzg366ckwcy425s3y5657ll","assets":[{"identifier":"wtest_usd","amount":"100000000000000000000","decimals":18}]}],"timestamp":"1745289093","metadata":[{"transactionType":"Spend"}]}]}}   
+{
+    "disclosureTransactions": {
+        "transactions": [
+            {
+                "transactionHash": "c888fe430188c9a83aa450ab7f647c51f6224caf16e3b8b25177d5d9d300ccaf",
+                "protocol": "penumbra",
+                "chainId": "penumbra-testnet-phobos-x3b26d34a",
+                "counterparties": [
+                    {
+                        "role": "receiver",
+                        "address": "penumbra147mfall0zr6am5r45qkwht7xqqrdsp50czde7empv7yq2nk3z8yyfh9k9520ddgswkmzar22vhz9dwtuem7uxw0qytfpv7lk3q9dp8ccaw2fn5c838rfackazmgf3ahh09cxmz",
+                        "assets": [
+                            {
+                                "identifier": "wtest_usd",
+                                "amount": "100000000000000000000",
+                                "decimals": 18
+                            }
+                        ]
+                    },
+                    {
+                        "role": "sender",
+                        "address": "penumbra1alp9a75s438d33rs5nt245ue2wctfne7x4c3v7afyslmwefltgpzm7r0jgmxphrcva6h44v9pe3esstnkw5fsha54rcp7xpmaphxx76scql92mefzg366ckwcy425s3y5657ll",
+                        "assets": [
+                            {
+                                "identifier": "wtest_usd",
+                                "amount": "100000000000000000000",
+                                "decimals": 18
+                            }
+                        ]
+                    }
+                ],
+                "timestamp": "1745289093",
+                "metadata": [
+                    {
+                        "transactionType": "Spend"
+                    }
+                ]
+            }
+        ]
+    }
+}
 ```
 
-# Development
+# Example Query (Multiple Disclosure)
 
-## Penumbra
-
-To test the penumbra disclosure client you'll need to setup a local environment
-
-Clone the penumbra repository to setup the development environment
+You can use the following curl command as a template for disclosing multiple transactions. You'll want to replace the `fullViewingKey` and `transactionHashes` with values relevant to your own wallet.
 
 ```shell
-$> git clone https://github.com/penumbra-zone/penumbra
-$> cd penumbra
-$> git checkout v1.4.0
-```
-
-Setup the development environment
-
-```shell
-$> nix develop
-$> just dev
+$> curl -X POST \
+    -H "Content-Type: application/json" \
+    -d '{"fullViewingKey": "penumbrafullviewingkey1jzwnl8k7hhqnvf06m4hfdwtsyc9ucce4nq6slpvxm8l9jgse0gg676654ea865dz4mn9ez33q3ysnedcplxey5g589cx4xl0duqkzrc0gqscq", "transactionHash": ["c888fe430188c9a83aa450ab7f647c51f6224caf16e3b8b25177d5d9d300ccaf"]}' \
+    http://localhost:1337/disclose/transactions
+{
+    "disclosureTransactions": {
+        "transactions": [
+            [{
+                "transactionHash": "c888fe430188c9a83aa450ab7f647c51f6224caf16e3b8b25177d5d9d300ccaf",
+                "protocol": "penumbra",
+                "chainId": "penumbra-testnet-phobos-x3b26d34a",
+                "counterparties": [
+                    {
+                        "role": "receiver",
+                        "address": "penumbra147mfall0zr6am5r45qkwht7xqqrdsp50czde7empv7yq2nk3z8yyfh9k9520ddgswkmzar22vhz9dwtuem7uxw0qytfpv7lk3q9dp8ccaw2fn5c838rfackazmgf3ahh09cxmz",
+                        "assets": [
+                            {
+                                "identifier": "wtest_usd",
+                                "amount": "100000000000000000000",
+                                "decimals": 18
+                            }
+                        ]
+                    },
+                    {
+                        "role": "sender",
+                        "address": "penumbra1alp9a75s438d33rs5nt245ue2wctfne7x4c3v7afyslmwefltgpzm7r0jgmxphrcva6h44v9pe3esstnkw5fsha54rcp7xpmaphxx76scql92mefzg366ckwcy425s3y5657ll",
+                        "assets": [
+                            {
+                                "identifier": "wtest_usd",
+                                "amount": "100000000000000000000",
+                                "decimals": 18
+                            }
+                        ]
+                    }
+                ],
+                "timestamp": "1745289093",
+                "metadata": [
+                    {
+                        "transactionType": "Spend"
+                    }
+                ]
+            }]
+        ]
+    }
+}
 ```

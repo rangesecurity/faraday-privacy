@@ -27,4 +27,10 @@ Cargo.lock
 
 test-ledger/
 
-crates/penumbra/mydb
+# ignore test database
+
+**/mydb
+
+# ignore compiled CLIs
+
+**/penumbra-disclosure-cli
