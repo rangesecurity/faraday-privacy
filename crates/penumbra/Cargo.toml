@@ -20,26 +20,27 @@ cli = ["clap", "api-server", "api-client"]
 [dependencies.common]
 path = "../common"
 
+# For Penumbra compatibility info, see https://github.com/penumbra-zone/penumbra/blob/main/COMPATIBILITY.md
 [dependencies.penumbra-sdk-view]
 git = "https://github.com/penumbra-zone/penumbra"
-tag = "v1.4.0"
+tag = "v1.5.2"
 [dependencies.penumbra-sdk-keys]
 git = "https://github.com/penumbra-zone/penumbra"
-tag = "v1.4.0"
+tag = "v1.5.2"
 [dependencies.penumbra-sdk-txhash]
 git = "https://github.com/penumbra-zone/penumbra"
-tag = "v1.4.0"
+tag = "v1.5.2"
 [dependencies.penumbra-sdk-proto]
 git = "https://github.com/penumbra-zone/penumbra"
-tag = "v1.4.0"
+tag = "v1.5.2"
 features = ["box-grpc"]
 [dependencies.penumbra-sdk-asset]
 git = "https://github.com/penumbra-zone/penumbra"
-tag = "v1.4.0"
+tag = "v1.5.2"
 
 [dependencies.penumbra-sdk-transaction]
 git = "https://github.com/penumbra-zone/penumbra"
-tag = "v1.4.0"
+tag = "v1.5.2"
 
 [dependencies.futures]
 version = "0.3"
