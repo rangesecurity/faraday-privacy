@@ -3,7 +3,6 @@ use {
     tracing_subscriber::{filter::LevelFilter, prelude::*, EnvFilter, Layer},
 };
 
-
 /// initializes logging capabilities but adds a variety of customization, including file+line which sourced the log,
 /// a tokio-console used for monitoring async tasks, as well as log-level filtration
 pub fn init_log(level: &str, file: &str) {

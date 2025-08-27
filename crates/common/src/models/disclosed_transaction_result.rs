@@ -1,7 +1,7 @@
 /*
  * Privacy Transaction Disclosure API
  *
- * API specification for selective disclosure of privacy-preserving transactions across various protocols including Penumbra and Solana Confidential Transactions. 
+ * API specification for selective disclosure of privacy-preserving transactions across various protocols including Penumbra and Solana Confidential Transactions.
  *
  * The version of the OpenAPI document: 1.0.0
  * Contact: support@example.com
@@ -13,7 +13,10 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct DisclosedTransactionResult {
-    #[serde(rename = "disclosureTransactions", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "disclosureTransactions",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub disclosure_transactions: Option<models::DisclosedTransactionResultDisclosureTransactions>,
     #[serde(rename = "disclosureErrors", skip_serializing_if = "Option::is_none")]
     pub disclosure_errors: Option<models::DisclosedTransactionResultDisclosureErrors>,
@@ -27,4 +30,3 @@ impl DisclosedTransactionResult {
         }
     }
 }
-

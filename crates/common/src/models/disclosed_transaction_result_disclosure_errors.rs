@@ -1,7 +1,7 @@
 /*
  * Privacy Transaction Disclosure API
  *
- * API specification for selective disclosure of privacy-preserving transactions across various protocols including Penumbra and Solana Confidential Transactions. 
+ * API specification for selective disclosure of privacy-preserving transactions across various protocols including Penumbra and Solana Confidential Transactions.
  *
  * The version of the OpenAPI document: 1.0.0
  * Contact: support@example.com
@@ -19,9 +19,6 @@ pub struct DisclosedTransactionResultDisclosureErrors {
 
 impl DisclosedTransactionResultDisclosureErrors {
     pub fn new(errors: Vec<models::DisclosureError>) -> DisclosedTransactionResultDisclosureErrors {
-        DisclosedTransactionResultDisclosureErrors {
-            errors,
-        }
+        DisclosedTransactionResultDisclosureErrors { errors }
     }
 }
-

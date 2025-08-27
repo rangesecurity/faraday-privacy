@@ -7,6 +7,8 @@ use {
 };
 
 pub async fn start_api(url: String, listen_url: String) -> Result<()> {
+    log::info!("Starting API server - connecting to Penumbra gRPC at {url}");
+    log::info!("API server listening on {listen_url}");
     let router = router::new(url);
     Ok(axum::serve(
         tokio::net::TcpListener::bind(listen_url)

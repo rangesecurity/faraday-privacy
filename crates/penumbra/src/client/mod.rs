@@ -66,6 +66,7 @@ impl DisclosureClient {
             fvk: fvk.clone(),
         })))
     }
+
     pub async fn sync(&self) -> Result<()> {
         let view = self.view.clone();
         let mut view = view.lock().await;
@@ -74,6 +75,7 @@ impl DisclosureClient {
         while let Some(Ok(_)) = stream.next().await {}
         Ok(())
     }
+
     pub async fn transaction(&self, hash: &str) -> Result<Transaction> {
         let txn = {
             let view = self.view.clone();
@@ -113,11 +115,12 @@ impl DisclosureClient {
                 },
             );
         }
-        // we want additional metadata to describe the effects of the transaction sowe can skip including the various *Output* actions
+
+        // we want additional metadata to describe the effects of the transaction so
+        // we can skip including the various *Output* actions
         // a transfer from A->B would have two actions Spend and Output
         // the Output metadata is not relevant for disclosure, as we can
-        // simply disclose that this transaction includes as pend
-
+        // simply disclose that this transaction includes a spend
         let metadata = txn
             .view
             .body_view
@@ -163,6 +166,7 @@ impl DisclosureClient {
             } else {
                 Role::Receiver
             };
+
             let balance_info = match role {
                 Role::Receiver => effect
                     .balance
@@ -192,6 +196,7 @@ impl DisclosureClient {
                 }],
             })
         }
+
         Ok(tx)
     }
 }
