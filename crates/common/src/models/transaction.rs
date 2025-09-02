@@ -1,7 +1,7 @@
 /*
  * Privacy Transaction Disclosure API
  *
- * API specification for selective disclosure of privacy-preserving transactions across various protocols including Penumbra and Solana Confidential Transactions. 
+ * API specification for selective disclosure of privacy-preserving transactions across various protocols including Penumbra and Solana Confidential Transactions.
  *
  * The version of the OpenAPI document: 1.0.0
  * Contact: support@example.com
@@ -31,7 +31,13 @@ pub struct Transaction {
 }
 
 impl Transaction {
-    pub fn new(transaction_hash: String, protocol: Protocol, chain_id: String, counterparties: Vec<models::Counterparty>, timestamp: String) -> Transaction {
+    pub fn new(
+        transaction_hash: String,
+        protocol: Protocol,
+        chain_id: String,
+        counterparties: Vec<models::Counterparty>,
+        timestamp: String,
+    ) -> Transaction {
         Transaction {
             transaction_hash,
             protocol,
@@ -56,4 +62,3 @@ impl Default for Protocol {
         Self::Penumbra
     }
 }
-

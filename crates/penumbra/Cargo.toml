@@ -1,7 +1,7 @@
 [package]
-name = "penumbra-disclosure"
-version = "0.1.0"
 edition = "2021"
+name    = "penumbra-disclosure"
+version = "0.1.0"
 
 [lib]
 name = "penumbra_disclosure"
@@ -12,10 +12,10 @@ name = "penumbra-disclosure-cli"
 path = "src/bin.rs"
 
 [features]
-default = ["api-server", "api-client", "cli"]
-api-server = ["axum", "reqwest", "tower-http", "http"]
-api-client = ["axum", "reqwest"]
-cli = ["clap", "api-server", "api-client"]
+api-client = [ "axum", "reqwest" ]
+api-server = [ "axum", "http", "reqwest", "tower-http" ]
+cli        = [ "api-client", "api-server", "clap" ]
+default    = [ "api-client", "api-server", "cli" ]
 
 [dependencies.common]
 path = "../common"
@@ -23,24 +23,24 @@ path = "../common"
 # For Penumbra compatibility info, see https://github.com/penumbra-zone/penumbra/blob/main/COMPATIBILITY.md
 [dependencies.penumbra-sdk-view]
 git = "https://github.com/penumbra-zone/penumbra"
-tag = "v1.5.2"
+tag = "v2.0.4"
 [dependencies.penumbra-sdk-keys]
 git = "https://github.com/penumbra-zone/penumbra"
-tag = "v1.5.2"
+tag = "v2.0.4"
 [dependencies.penumbra-sdk-txhash]
 git = "https://github.com/penumbra-zone/penumbra"
-tag = "v1.5.2"
+tag = "v2.0.4"
 [dependencies.penumbra-sdk-proto]
-git = "https://github.com/penumbra-zone/penumbra"
-tag = "v1.5.2"
-features = ["box-grpc"]
+features = [ "box-grpc" ]
+git      = "https://github.com/penumbra-zone/penumbra"
+tag      = "v2.0.4"
 [dependencies.penumbra-sdk-asset]
 git = "https://github.com/penumbra-zone/penumbra"
-tag = "v1.5.2"
+tag = "v2.0.4"
 
 [dependencies.penumbra-sdk-transaction]
 git = "https://github.com/penumbra-zone/penumbra"
-tag = "v1.5.2"
+tag = "v2.0.4"
 
 [dependencies.futures]
 version = "0.3"
@@ -52,8 +52,8 @@ version = "0.40.3"
 version = "0.12.3"
 
 [dependencies.tokio]
-version = "1"
-features = ["full"]
+features = [ "full" ]
+version  = "1"
 
 [dependencies.anyhow]
 version = "1"
@@ -68,31 +68,31 @@ version = "0.4"
 version = "0.4"
 
 [dependencies.axum]
-version = "0.8.4"
+features = [ "macros" ]
 optional = true
-features = ["macros"]
+version  = "0.8.4"
 
 [dependencies.tower-http]
-version = "0.6"
-features = ["cors"]
+features = [ "cors" ]
 optional = true
+version  = "0.6"
 
 [dependencies.http]
-version = "1"
 optional = true
+version  = "1"
 
-[dependencies.reqwest] 
-version = "^0.12"
-features = ["json", "multipart"]
+[dependencies.reqwest]
+features = [ "json", "multipart" ]
 optional = true
+version  = "^0.12"
 
 [dependencies.sha3]
 version = "0.10"
 
 [dependencies.clap]
-version = "4"
-features = ["derive"]
+features = [ "derive" ]
 optional = true
+version  = "4"
 
 [dev-dependencies.serde_json]
 version = "1"
@@ -101,8 +101,8 @@ version = "1"
 version = "0.4"
 
 [dev-dependencies.tower]
-version = "0.5"
-features = ["util"]
+features = [ "util" ]
+version  = "0.5"
 
 [dev-dependencies.http-body-util]
 version = "0.1"

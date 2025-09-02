@@ -30,6 +30,7 @@ impl From<&ActionView> for TransactionType {
             ActionView::ActionDutchAuctionSchedule(..) => "ActionDutchAuctionSchedule",
             ActionView::ActionDutchAuctionEnd(..) => "ActionDutchAuctionEnd",
             ActionView::ActionDutchAuctionWithdraw(..) => "ActionDutchAuctionWithdraw",
+            ActionView::ActionLiquidityTournamentVote(..) => "ActionLiquidityTournamentVote",
         };
 
         Self(name.to_string())
