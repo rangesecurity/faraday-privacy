@@ -1,6 +1,9 @@
 use {
     crate::api::server::handlers,
-    axum::{routing::post, Router},
+    axum::{
+        routing::{get, post},
+        Router,
+    },
     std::sync::Arc,
     tower_http::cors::CorsLayer,
 };
@@ -20,6 +23,7 @@ pub fn new(url: String) -> Router {
             "/disclose/transactions",
             post(handlers::disclose_transactions),
         )
+        .route("health", get(handlers::health))
         .with_state(Arc::new(AppState { url }))
         .layer(
             CorsLayer::new()
@@ -47,8 +51,10 @@ mod test {
         },
         http::StatusCode,
         http_body_util::BodyExt,
+        serde_json::Value,
         tower::{Service, ServiceExt},
     };
+
     #[tokio::test]
     async fn test_disclose_transaction() {
         let mut router = new("http://localhost:8080/".to_string());
@@ -102,6 +108,7 @@ mod test {
 
         assert_eq!(status, StatusCode::OK);
     }
+
     #[tokio::test]
     async fn test_disclose_transactions() {
         let mut router = new("http://localhost:8080/".to_string());
@@ -161,5 +168,29 @@ mod test {
         }));
 
         assert_eq!(status, StatusCode::OK);
+    }
+    #[tokio::test]
+    async fn test_health() {
+        let mut router = new("http://localhost:8080/".to_string());
+        let request = Request::builder()
+            .method("GET")
+            .uri("/health")
+            .body(Body::from(""))
+            .unwrap();
+        let res = ServiceExt::<Request<Body>>::ready(&mut router)
+            .await
+            .unwrap()
+            .call(request)
+            .await
+            .unwrap();
+        let status = res.status();
+        assert_eq!(status, StatusCode::OK);
+
+        let body_bytes = res.into_body().collect().await.unwrap().to_bytes();
+        let json: Value = serde_json::from_slice(&body_bytes).unwrap();
+
+        assert_eq!(json["status"], "ok");
+        assert_eq!(json["version"], env!("CARGO_PKG_VERSION"));
+        assert!(json["timestamp"].is_string());
     }
 }
