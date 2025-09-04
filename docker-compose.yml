@@ -1,7 +1,7 @@
 services:
   penumbra:
     image: penumbra-disclosure-cli:latest
-    command: --rpc-url http://localhost:8080 api --listen-url 0.0.0.0:1337
+    command: --grpc-url http://localhost:8080 api --listen-url 0.0.0.0:1337
     build:
       context: .
       dockerfile: Dockerfile.penumbra
