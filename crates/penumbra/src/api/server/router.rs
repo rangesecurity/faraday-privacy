@@ -23,7 +23,7 @@ pub fn new(url: String) -> Router {
             "/disclose/transactions",
             post(handlers::disclose_transactions),
         )
-        .route("health", get(handlers::health))
+        .route("/health", get(handlers::health))
         .with_state(Arc::new(AppState { url }))
         .layer(
             CorsLayer::new()
