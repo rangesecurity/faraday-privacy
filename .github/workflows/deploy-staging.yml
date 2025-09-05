@@ -1,0 +1,89 @@
+name: Deploy to Staging
+
+on:
+  workflow_run:
+    workflows: ["Build and Push Docker Image"]
+    types: [completed]
+
+permissions:
+  contents: read
+  id-token: write
+  packages: read
+
+env:
+  DEPLOYMENTS_REPO: rangesecurity/deployments
+  DEPLOYMENTS_BRANCH: main
+  DEPLOYMENTS_FILE: apps/faraday-privacy/values-stage.yaml
+  IMAGE_REPO: ghcr.io/rangesecurity/faraday-api
+  YQ_VERSION: v4.44.3
+
+jobs:
+  bump-deployments:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout source repo at triggering branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_branch }}
+
+      - name: Derive tag or fallback to sha
+        id: tag
+        run: |
+          set -euo pipefail
+          git fetch --tags --force
+          TAG="$(git tag --points-at ${{ github.event.workflow_run.head_sha }} | head -n1 || true)"
+          if [ -z "$TAG" ]; then
+            SHORT_SHA="$(echo "${{ github.event.workflow_run.head_sha }}" | cut -c1-7)"
+            TAG="sha-${SHORT_SHA}"
+            echo "No tag found; using ${TAG}"
+          else
+            echo "Using tag ${TAG}"
+          fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Create rangesec-deploy-bot GitHub App installation token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.GH_APP_RANGE_DEPLOYER_ID }}
+          private-key: ${{ secrets.GH_APP_RANGE_DEPLOYER_PRIVATE_KEY }}
+          owner: rangesecurity
+          repositories: deployments
+
+      - name: Checkout deployments repo (private via App token)
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.DEPLOYMENTS_REPO }}
+          ref: ${{ env.DEPLOYMENTS_BRANCH }}
+          token: ${{ steps.app-token.outputs.token }}
+          path: deployments
+
+      - name: Install yq
+        run: |
+          sudo curl -L "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64" -o /usr/local/bin/yq
+          sudo chmod +x /usr/local/bin/yq
+
+      - name: Update image tag in values-stage.yaml
+        working-directory: deployments
+        env:
+          NEW_TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          echo "Updating ${DEPLOYMENTS_FILE} -> image.repository=${IMAGE_REPO}, image.tag=${NEW_TAG}"
+          yq -i '.image.repository = strenv(IMAGE_REPO) | .image.tag = strenv(NEW_TAG)' "$DEPLOYMENTS_FILE"
+          echo "Result:"
+          yq '.image' "$DEPLOYMENTS_FILE"
+
+      - name: Commit & push
+        working-directory: deployments
+        run: |
+          git config user.name  "rangesec-deploy-bot[app]"
+          git config user.email "rangesec-deploy-bot[app]@users.noreply.github.com"
+          if git diff --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          git add "$DEPLOYMENTS_FILE"
+          git commit -m "chore(faraday stage): bump image tag to ${{ steps.tag.outputs.tag }}"
+          git push origin "$DEPLOYMENTS_BRANCH"
