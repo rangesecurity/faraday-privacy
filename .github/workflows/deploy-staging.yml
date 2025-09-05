@@ -11,10 +11,19 @@ permissions:
   packages: read
 
 env:
+  # The app name in the deployment repo
+  APP: faraday-privacy
+  # The environment to deploy to e.g. stage, production
+  ENVIRONMENT: stage
+  # The deployments repository
   DEPLOYMENTS_REPO: rangesecurity/deployments
+  # The branch to write updates to
   DEPLOYMENTS_BRANCH: main
+  # The file to write updates to
   DEPLOYMENTS_FILE: apps/faraday-privacy/values-stage.yaml
-  IMAGE_REPO: ghcr.io/rangesecurity/faraday-api
+  # The container image repository
+  IMAGE_REPO: ghcr.io/rangesecurity/faraday-privacy
+  # The `yq` version (used to parse and write to yaml files)
   YQ_VERSION: v4.44.3
 
 jobs:
@@ -85,5 +94,5 @@ jobs:
             exit 0
           fi
           git add "$DEPLOYMENTS_FILE"
-          git commit -m "chore(faraday stage): bump image tag to ${{ steps.tag.outputs.tag }}"
+          git commit -m "chore(${APP} ${ENVIRONMENT}): bump image tag to ${{ steps.tag.outputs.tag }}"
           git push origin "$DEPLOYMENTS_BRANCH"
