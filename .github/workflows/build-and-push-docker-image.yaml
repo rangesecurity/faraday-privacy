@@ -2,8 +2,8 @@ name: Build & Push Docker image
 
 on:
   push:
-    branches: [main]
-  pull_request:
+    tags:
+      - "v*.*.*"
 
 permissions:
   contents: read
