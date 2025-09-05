@@ -22,7 +22,7 @@ env:
   # The file to write updates to
   DEPLOYMENTS_FILE: apps/faraday-privacy/values-stage.yaml
   # The container image repository
-  IMAGE_REPO: ghcr.io/rangesecurity/faraday-privacy
+  IMAGE_REPO: ghcr.io/rangesecurity/penumbra-disclosure-cli
   # The `yq` version (used to parse and write to yaml files)
   YQ_VERSION: v4.44.3
 
