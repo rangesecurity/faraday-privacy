@@ -1,13 +1,13 @@
-name: Build & Push penumbra image
+name: Build and Push Docker Image
 
 on:
   push:
-    branches: [main]
-  pull_request:
+    tags:
+      - "v*.*.*"
 
 permissions:
   contents: read
-  packages: write # needed for GHCR
+  packages: write
 
 env:
   IMAGE_NAME: ghcr.io/rangesecurity/penumbra-disclosure-cli
@@ -31,7 +31,7 @@ jobs:
         with:
           images: ${{ env.IMAGE_NAME }}
           tags: |
-            type=sha,format=long
+            type=sha,format=short
             type=ref,event=branch
             type=ref,event=tag
 
