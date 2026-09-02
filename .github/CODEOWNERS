@@ -1,0 +1,4 @@
+# Infra/CI ownership: PRs touching these paths request Victor's review.
+/.github/workflows/  @vikgmdev
+/ansible/            @vikgmdev
+/.github/CODEOWNERS  @vikgmdev
